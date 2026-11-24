@@ -12,7 +12,7 @@ the in-process tools. When it is off, the agent is exactly the v1 agent.
 """
 
 from __future__ import annotations
-
+import os
 import logging
 from typing import Any
 
@@ -26,7 +26,8 @@ from tools import build_tools
 
 log = logging.getLogger("it-helpdesk")
 
-MODEL = "gpt-4o-mini"
+
+MODEL = os.environ.get("AGENT_MODEL", "gpt-4o-mini")
 
 SYSTEM_PROMPT_TEMPLATE = (
     "You are an IT helpdesk agent for {company_name}. "
@@ -130,6 +131,7 @@ async def load_mcp_tools(cfg: Config) -> list[Any]:
 
 
 def build_agent(cfg: Config, mcp_tools: list[Any] | None = None) -> Any:
+    extra = {} if "sol" in MODEL else {"temperature": 0}
     if cfg.use_llm_provider:
         llm = ChatOpenAI(
             model=MODEL,
@@ -140,9 +142,10 @@ def build_agent(cfg: Config, mcp_tools: list[Any] | None = None) -> Any:
                 "API-Key": cfg.llm_provider_key,
                 "Authorization": "",
             },
+            **extra,
         )
     else:
-        llm = ChatOpenAI(model=MODEL, temperature=0)
+        llm = ChatOpenAI(model=MODEL, **extra)
 
     tools = build_tools(cfg) + list(mcp_tools or [])
     system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
